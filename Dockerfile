@@ -1,4 +1,4 @@
-FROM node:18-slim
+FROM node:20-slim
 
 # Instalar dependencias del sistema para Playwright
 RUN apt-get update && apt-get install -y \
