@@ -1,25 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import puppeteer from 'puppeteer';
-import fs from 'fs';
-
-// Detectar Chrome instalado
-function getChromePath() {
-  const paths = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium',
-  ];
-  
-  for (const path of paths) {
-    if (fs.existsSync(path)) {
-      return path;
-    }
-  }
-  
-  return null; // Usar Chrome bundled de Puppeteer
-}
+import { chromium } from 'playwright';
 
 /**
  * Busca URLs de pipelines usando Google Search (scraping de resultados)
@@ -31,51 +12,37 @@ export const searchPipelineUrlsWithGoogle = async (companyName) => {
   try {
     console.log(`  🔍 Buscando en Google con navegador: "${companyName} Pipeline"`);
     
-    // Iniciar navegador (modo visible para debug)
-    const chromePath = getChromePath();
-    const launchOptions = {
-      headless: process.env.NODE_ENV === 'production' ? 'new' : false,
+    browser = await chromium.launch({
+      headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-default-apps',
         '--no-sandbox',
         '--disable-setuid-sandbox',
       ],
-      defaultViewport: null,
-    };
+    });
     
-    if (chromePath) {
-      launchOptions.executablePath = chromePath;
-      console.log(`    🖥️  Usando Chrome: ${chromePath}`);
-    } else {
-      console.log(`    ⚠️  Chrome no encontrado, usando bundled`);
-    }
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      },
+    });
     
-    browser = await puppeteer.launch(launchOptions);
-    
-    const page = await browser.newPage();
+    const page = await context.newPage();
     
     // Ocultar webdriver
-    await page.evaluateOnNewDocument(() => {
+    await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', {
         get: () => false,
       });
     });
     
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
-    
     // Ir primero a Google home para establecer cookies
     console.log(`    🏠 Visitando Google home...`);
-    await page.goto('https://www.google.com', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto('https://www.google.com', { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(2000);
     
     // Ahora hacer la búsqueda
@@ -85,7 +52,7 @@ export const searchPipelineUrlsWithGoogle = async (companyName) => {
     // Usar el input de búsqueda como un humano
     await page.type('textarea[name="q"], input[name="q"]', query, { delay: 100 });
     await page.keyboard.press('Enter');
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+    await page.waitForLoadState('networkidle');
     await page.waitForTimeout(3000);
     
     // Extraer URLs de los resultados
@@ -130,11 +97,6 @@ export const searchPipelineUrlsWithGoogle = async (companyName) => {
     console.log(`  ✅ Encontradas ${urls.length} URLs en Google`);
     urls.forEach((url, i) => console.log(`     ${i + 1}. ${url}`));
     
-    // Esperar 3 segundos para que puedas ver el navegador
-    await page.waitForTimeout(3000);
-    
-    await browser.close();
-    
     return urls;
     
   } catch (error) {
@@ -153,47 +115,39 @@ export const searchPipelineUrlsWithDuckDuckGo = async (companyName) => {
   try {
     console.log(`  🦆 Buscando en DuckDuckGo con navegador: "${companyName} Pipeline"`);
     
-    const chromePath = getChromePath();
-    const launchOptions = {
-      headless: process.env.NODE_ENV === 'production' ? 'new' : false,
+    browser = await chromium.launch({
+      headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-default-apps',
         '--no-sandbox',
         '--disable-setuid-sandbox',
       ],
-      defaultViewport: null,
-    };
+    });
     
-    if (chromePath) launchOptions.executablePath = chromePath;
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      },
+    });
     
-    browser = await puppeteer.launch(launchOptions);
-    
-    const page = await browser.newPage();
+    const page = await context.newPage();
     
     // Ocultar webdriver
-    await page.evaluateOnNewDocument(() => {
+    await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', {
         get: () => false,
       });
-    });
-    
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     });
     
     const query = `${companyName} Pipeline`;
     
     // Usar DuckDuckGo normal (no HTML)
     console.log(`    🌐 Navegando a DuckDuckGo...`);
-    await page.goto('https://duckduckgo.com', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto('https://duckduckgo.com', { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(2000);
     
     // Buscar como humano
@@ -241,11 +195,6 @@ export const searchPipelineUrlsWithDuckDuckGo = async (companyName) => {
     
     console.log(`  ✅ Encontradas ${urls.length} URLs en DuckDuckGo`);
     urls.forEach((url, i) => console.log(`     ${i + 1}. ${url}`));
-    
-    // Esperar 3 segundos para que puedas ver el navegador
-    await page.waitForTimeout(3000);
-    
-    await browser.close();
     
     return urls;
     
