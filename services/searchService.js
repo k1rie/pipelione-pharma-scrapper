@@ -13,7 +13,7 @@ export const searchPipelineUrlsWithGoogle = async (companyName) => {
     console.log(`  🔍 Buscando en Google con navegador: "${companyName} Pipeline"`);
     
     browser = await chromium.launch({
-      headless: true,
+      headless: process.env.HEADLESS === 'false' ? false : true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
@@ -116,7 +116,7 @@ export const searchPipelineUrlsWithDuckDuckGo = async (companyName) => {
     console.log(`  🦆 Buscando en DuckDuckGo con navegador: "${companyName} Pipeline"`);
     
     browser = await chromium.launch({
-      headless: true,
+      headless: process.env.HEADLESS === 'false' ? false : true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',

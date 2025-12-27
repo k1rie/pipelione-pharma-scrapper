@@ -12,7 +12,7 @@ export const scrapeWithPlaywright = async (url) => {
     
     // Lanzar navegador con opciones optimizadas
     browser = await chromium.launch({
-      headless: true,
+      headless: process.env.HEADLESS === 'false' ? false : true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
@@ -205,7 +205,7 @@ export const extractPipelineTables = async (url) => {
     console.log(`    📊 Extrayendo tablas de pipeline de: ${url}`);
     
     browser = await chromium.launch({
-      headless: true,
+      headless: process.env.HEADLESS === 'false' ? false : true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
