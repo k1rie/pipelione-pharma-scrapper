@@ -3,7 +3,7 @@ dotenv.config();
 
 import { getCompaniesToScrape, updateCompanyLastScrape, saveMedications, publishChanges } from '../services/hubspotService.js';
 import { findPipelineUrls } from '../services/searchService.js';
-import { smartScrape } from '../services/puppeteerService.js';
+import { smartScrape } from '../services/playwrightService.js';
 import { scrapeWebsite } from '../services/scraperService.js';
 import { extractPipelineData } from '../services/openaiService.js';
 

@@ -1,7 +1,7 @@
 import { extractPipelineData } from '../services/openaiService.js';
 import { scrapeWebsite } from '../services/scraperService.js';
 import { findPipelineUrls } from '../services/searchService.js';
-import { smartScrape } from '../services/puppeteerService.js';
+import { smartScrape } from '../services/playwrightService.js';
 
 export const scrapePipelines = async (req, res) => {
   try {

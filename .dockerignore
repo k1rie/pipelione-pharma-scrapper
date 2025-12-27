@@ -3,9 +3,10 @@ npm-debug.log
 .env
 .git
 .gitignore
-*.md
 README.md
-ENV_TEMPLATE.md
-VARIABLES.md
-create-env.sh
-
+.DS_Store
+*.md
+.vscode
+.idea
+data/openai-usage.json
+docker-compose.yml

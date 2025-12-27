@@ -1,37 +1,18 @@
-import puppeteer from 'puppeteer';
-import fs from 'fs';
-
-// Detectar Chrome instalado
-function getChromePath() {
-  const paths = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium',
-  ];
-  
-  for (const path of paths) {
-    if (fs.existsSync(path)) {
-      return path;
-    }
-  }
-  
-  return null;
-}
+import { chromium } from 'playwright';
 
 /**
- * Scraper con Puppeteer - Renderiza JavaScript y obtiene contenido dinámico
+ * Scraper con Playwright - Renderiza JavaScript y obtiene contenido dinámico
  * Usa un navegador real para cargar páginas con JavaScript
  */
-export const scrapeWithPuppeteer = async (url) => {
+export const scrapeWithPlaywright = async (url) => {
   let browser = null;
   
   try {
-    console.log(`    🤖 Iniciando navegador Puppeteer para: ${url}`);
+    console.log(`    🤖 Iniciando navegador Playwright para: ${url}`);
     
-    const chromePath = getChromePath();
-    const launchOptions = {
-      headless: process.env.NODE_ENV === 'production' ? 'new' : false,
+    // Lanzar navegador con opciones optimizadas
+    browser = await chromium.launch({
+      headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
@@ -41,46 +22,33 @@ export const scrapeWithPuppeteer = async (url) => {
         '--no-sandbox',
         '--disable-setuid-sandbox',
       ],
-      defaultViewport: null,
-    };
+    });
     
-    if (chromePath) {
-      launchOptions.executablePath = chromePath;
-    }
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      },
+    });
     
-    browser = await puppeteer.launch(launchOptions);
-    
-    const page = await browser.newPage();
+    const page = await context.newPage();
     
     // Ocultar webdriver
-    await page.evaluateOnNewDocument(() => {
+    await page.addInitScript(() => {
       Object.defineProperty(navigator, 'webdriver', {
         get: () => false,
       });
     });
     
-    // Configurar viewport
-    await page.setViewport({ width: 1920, height: 1080 });
-    
-    // User-Agent realista
-    await page.setUserAgent(
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-    
-    // Headers adicionales
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
-    
     // Bloquear recursos innecesarios para acelerar
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const resourceType = request.resourceType();
+    await page.route('**/*', (route) => {
+      const resourceType = route.request().resourceType();
       if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
-        request.abort();
+        route.abort();
       } else {
-        request.continue();
+        route.continue();
       }
     });
     
@@ -88,14 +56,14 @@ export const scrapeWithPuppeteer = async (url) => {
     
     // Navegar a la URL con timeout
     await page.goto(url, {
-      waitUntil: 'networkidle2', // Esperar a que la red esté inactiva
-      timeout: 30000, // 30 segundos
+      waitUntil: 'networkidle',
+      timeout: 30000,
     });
     
     console.log(`    ⏳ Esperando que JavaScript cargue el contenido...`);
     
     // Esperar un poco más para que JavaScript termine de renderizar
-    await page.waitForTimeout(3000); // 3 segundos adicionales
+    await page.waitForTimeout(3000);
     
     // Intentar esperar por selectores comunes de tablas de pipelines
     try {
@@ -172,9 +140,6 @@ export const scrapeWithPuppeteer = async (url) => {
       throw new Error(`El contenido extraído es muy corto (${fullContent.length} caracteres). La página puede estar protegida.`);
     }
     
-    // Esperar 2 segundos para que puedas ver el resultado
-    await page.waitForTimeout(2000);
-    
     await browser.close();
     
     return fullContent;
@@ -185,7 +150,7 @@ export const scrapeWithPuppeteer = async (url) => {
     }
     
     // Errores específicos
-    if (error.message.includes('timeout')) {
+    if (error.message.includes('Timeout') || error.message.includes('timeout')) {
       throw new Error(`⏱️ Timeout: La página tardó más de 30 segundos en cargar: ${url}`);
     }
     
@@ -197,13 +162,13 @@ export const scrapeWithPuppeteer = async (url) => {
       throw new Error(`🚫 Conexión rechazada: ${url}`);
     }
     
-    throw new Error(`❌ Error con Puppeteer en ${url}: ${error.message}`);
+    throw new Error(`❌ Error con Playwright en ${url}: ${error.message}`);
   }
 };
 
 /**
  * Scraper inteligente: intenta primero con Axios/Cheerio (rápido),
- * si falla o el contenido es muy corto, usa Puppeteer (lento pero completo)
+ * si falla o el contenido es muy corto, usa Playwright (lento pero completo)
  */
 export const smartScrape = async (url, axiosScraper) => {
   console.log(`    🧠 Scraping inteligente: ${url}`);
@@ -218,14 +183,14 @@ export const smartScrape = async (url, axiosScraper) => {
       console.log(`    ✅ Axios OK (${content.length} chars)`);
       return content;
     }
-    console.log(`    ⚠️  Poco contenido (${content.length}), usando Puppeteer...`);
+    console.log(`    ⚠️  Poco contenido (${content.length}), usando Playwright...`);
   } catch (error) {
-    console.log(`    ⚠️  Axios falló, usando Puppeteer...`);
+    console.log(`    ⚠️  Axios falló, usando Playwright...`);
   }
   
-  // Intento 2: Puppeteer (completo)
-  const content = await scrapeWithPuppeteer(url);
-  console.log(`    ✅ Puppeteer OK (${content.length} chars)`);
+  // Intento 2: Playwright (completo)
+  const content = await scrapeWithPlaywright(url);
+  console.log(`    ✅ Playwright OK (${content.length} chars)`);
   return content;
 };
 
@@ -239,27 +204,22 @@ export const extractPipelineTables = async (url) => {
   try {
     console.log(`    📊 Extrayendo tablas de pipeline de: ${url}`);
     
-    const chromePath = getChromePath();
-    const launchOptions = {
-      headless: process.env.NODE_ENV === 'production' ? 'new' : false,
+    browser = await chromium.launch({
+      headless: true,
       args: [
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--disable-default-apps',
         '--no-sandbox',
         '--disable-setuid-sandbox',
       ],
-      defaultViewport: null,
-    };
+    });
     
-    if (chromePath) launchOptions.executablePath = chromePath;
+    const context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+    });
     
-    browser = await puppeteer.launch(launchOptions);
-    
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    const page = await context.newPage();
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForTimeout(3000);
     
     // Extraer tablas estructuradas
