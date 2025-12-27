@@ -2,7 +2,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { getCompaniesToScrape, updateCompanyLastScrape, saveMedications, publishChanges } from '../services/hubspotService.js';
-import { createClickUpTasks } from '../services/clickupService.js';
 import { findPipelineUrls } from '../services/searchService.js';
 import { smartScrape } from '../services/puppeteerService.js';
 import { scrapeWebsite } from '../services/scraperService.js';
@@ -91,10 +90,6 @@ async function main() {
           await saveMedications(companyMedications);
           await publishChanges();
           console.log(`  ✅ Medicamentos guardados en HubSpot`);
-          
-          // Crear tareas en ClickUp
-          await createClickUpTasks(companyMedications);
-          console.log(`  ✅ Tareas creadas en ClickUp`);
         }
         
         // 4. Actualizar fecha de último scraping
