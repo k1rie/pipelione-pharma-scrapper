@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+*.md
+README.md
+ENV_TEMPLATE.md
+VARIABLES.md
+create-env.sh
+
