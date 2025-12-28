@@ -155,40 +155,117 @@ export const searchPipelineUrlsWithDuckDuckGo = async (companyName) => {
     await page.type('input[name="q"]', query, { delay: 100 });
     await page.keyboard.press('Enter');
     console.log(`    ⏳ Esperando resultados...`);
-    await page.waitForTimeout(5000); // Esperar resultados
+    await page.waitForTimeout(3000); // Esperar carga inicial
+    
+    // Hacer scroll para cargar más resultados
+    console.log(`    📜 Haciendo scroll para cargar más resultados...`);
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 2);
+    });
+    await page.waitForTimeout(1000);
+    
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+    await page.waitForTimeout(2000); // Esperar que carguen más resultados
     
     const urls = await page.evaluate((companyName) => {
       const allUrls = new Set();
-      const lowerCompany = companyName.toLowerCase().split(' ')[0];
+      const companyWords = companyName.toLowerCase().split(' ');
+      const mainCompanyWord = companyWords[0]; // Primera palabra de la empresa
       
-      // Buscar en todos los links de resultados
-      const links = document.querySelectorAll('a[href], article a, .result a');
+      // Buscar en todos los links de resultados - selectores más amplios
+      const links = document.querySelectorAll('a[href]');
       
       console.log('Total links encontrados:', links.length);
       
       links.forEach(link => {
         const href = link.getAttribute('href');
-        const text = link.textContent || '';
+        const text = (link.textContent || '').toLowerCase();
         
-        console.log('Link:', href, 'Text:', text.substring(0, 50));
+        if (!href) return;
         
-        if (href && href.startsWith('http') && !href.includes('duckduckgo.com')) {
+        // Filtrar links de DuckDuckGo y otros no deseados
+        if (href.includes('duckduckgo.com') || 
+            href.includes('javascript:') || 
+            href.startsWith('#') ||
+            href.includes('facebook.com') ||
+            href.includes('twitter.com') ||
+            href.includes('linkedin.com') ||
+            href.includes('youtube.com') ||
+            href.includes('instagram.com')) {
+          return;
+        }
+        
+        // Procesar URLs que empiezan con http
+        if (href.startsWith('http')) {
           try {
             const url = new URL(href);
             const domain = url.hostname.toLowerCase();
+            const pathname = url.pathname.toLowerCase();
+            const fullUrl = url.href.toLowerCase();
             
-            // Verificar si el dominio contiene el nombre de la empresa
-            if (domain.includes(lowerCompany) || lowerCompany.includes(domain.split('.')[0])) {
+            // Verificar si el dominio o la URL contienen palabras de la empresa
+            const domainMatchesCompany = companyWords.some(word => {
+              if (word.length < 3) return false; // Ignorar palabras muy cortas
+              return domain.includes(word) || word.includes(domain.split('.')[0]);
+            });
+            
+            // Verificar si la URL contiene palabras clave relevantes
+            const hasRelevantKeywords = 
+              pathname.includes('pipeline') ||
+              pathname.includes('research') ||
+              pathname.includes('development') ||
+              pathname.includes('clinical') ||
+              pathname.includes('drug') ||
+              pathname.includes('product') ||
+              pathname.includes('innovation') ||
+              pathname.includes('science') ||
+              pathname.includes('therapy') ||
+              pathname.includes('pharmaceutical') ||
+              text.includes('pipeline') ||
+              text.includes('research') ||
+              text.includes('clinical');
+            
+            // Agregar URL si coincide con la empresa
+            if (domainMatchesCompany) {
               allUrls.add(href);
-              console.log('✅ URL válida:', href);
+              console.log('✅ URL válida (dominio):', href);
+            } 
+            // O si tiene palabras clave relevantes y menciona la empresa en el texto
+            else if (hasRelevantKeywords && companyWords.some(word => text.includes(word))) {
+              allUrls.add(href);
+              console.log('✅ URL válida (keywords + texto):', href);
             }
           } catch (e) {
-            console.log('❌ URL inválida:', href);
+            console.log('❌ URL inválida:', href, e.message);
+          }
+        }
+        // Procesar URLs relativas (pueden ser de DuckDuckGo redirigiendo)
+        else if (href.startsWith('/')) {
+          // Intentar extraer URL real de parámetros
+          try {
+            const urlParams = new URLSearchParams(href.split('?')[1] || '');
+            const uddg = urlParams.get('uddg');
+            if (uddg) {
+              const decodedUrl = decodeURIComponent(uddg);
+              if (decodedUrl.startsWith('http')) {
+                const url = new URL(decodedUrl);
+                const domain = url.hostname.toLowerCase();
+                
+                if (companyWords.some(word => word.length >= 3 && (domain.includes(word) || word.includes(domain.split('.')[0])))) {
+                  allUrls.add(decodedUrl);
+                  console.log('✅ URL válida (uddg):', decodedUrl);
+                }
+              }
+            }
+          } catch (e) {
+            console.log('❌ Error procesando URL relativa:', href);
           }
         }
       });
       
-      return Array.from(allUrls).slice(0, 10);
+      return Array.from(allUrls).slice(0, 15); // Aumentar límite a 15
     }, companyName);
     
     await browser.close();
@@ -219,20 +296,10 @@ export const generateCommonPipelineUrls = (companyName) => {
     return [];
   }
   
-  // Rutas comunes donde suelen estar los pipelines
+  // Rutas comunes donde suelen estar los pipelines (solo fallback)
   const commonPaths = [
     '/pipeline',
-    '/drug-pipeline',
-    '/products-pipeline',
-    '/research-development/pipeline',
-    '/research/pipeline',
     '/science/pipeline',
-    '/science/drug-product-pipeline',
-    '/innovation/pipeline',
-    '/rd/pipeline',
-    '/clinical-development',
-    '/clinical-trials',
-    '/research-and-development',
   ];
   
   const urls = commonPaths.map(path => `https://www.${domain}${path}`);
@@ -363,8 +430,8 @@ export const findPipelineUrls = async (companyName) => {
     urls = urls.concat(commonUrls);
   }
   
-  // Eliminar duplicados y limitar a 5
-  const uniqueUrls = [...new Set(urls)].slice(0, 5);
+  // Eliminar duplicados y limitar a 8 (aumentado de 5)
+  const uniqueUrls = [...new Set(urls)].slice(0, 8);
   
   console.log(`\n  📊 Total de URLs a probar: ${uniqueUrls.length}`);
   uniqueUrls.forEach((url, i) => console.log(`     ${i + 1}. ${url}`));

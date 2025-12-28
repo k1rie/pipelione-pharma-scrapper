@@ -157,18 +157,74 @@ async function ensureScrapingProperty() {
 }
 
 /**
- * Actualiza la fecha de último scraping de una empresa
+ * Crea la propiedad custom para tracking de medicamentos encontrados si no existe
  */
-export const updateCompanyLastScrape = async (companyId) => {
+async function ensureMedicationsFoundProperty() {
   try {
-    // Asegurar que la propiedad existe
+    // Intentar obtener la propiedad
+    await axios.get(
+      'https://api.hubapi.com/crm/v3/properties/companies/medications_found_last_scrape',
+      {
+        headers: {
+          'Authorization': `Bearer ${HUBSPOT_KEY}`,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+    
+    return true; // Ya existe
+  } catch (error) {
+    if (error.response?.status === 404) {
+      // Crear la propiedad
+      console.log('📝 Creando propiedad custom: medications_found_last_scrape');
+      
+      try {
+        await axios.post(
+          'https://api.hubapi.com/crm/v3/properties/companies',
+          {
+            name: 'medications_found_last_scrape',
+            label: 'Medications Found Last Scrape',
+            type: 'enumeration',
+            fieldType: 'booleancheckbox',
+            groupName: 'companyinformation',
+            description: 'Indica si se encontraron medicamentos en el último scraping'
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${HUBSPOT_KEY}`,
+              'Content-Type': 'application/json',
+            }
+          }
+        );
+        
+        console.log('✅ Propiedad medications_found_last_scrape creada exitosamente');
+        return true;
+      } catch (createError) {
+        console.error('❌ Error creando propiedad medications_found:', createError.response?.data || createError.message);
+        return false;
+      }
+    }
+    
+    console.error('❌ Error verificando propiedad medications_found:', error.response?.data || error.message);
+    return false;
+  }
+}
+
+/**
+ * Actualiza la fecha de último scraping de una empresa y si se encontraron medicamentos
+ */
+export const updateCompanyLastScrape = async (companyId, medicationsFound = false) => {
+  try {
+    // Asegurar que las propiedades existen
     await ensureScrapingProperty();
+    await ensureMedicationsFoundProperty();
     
     await axios.patch(
       `https://api.hubapi.com/crm/v3/objects/companies/${companyId}`,
       {
         properties: {
-          last_pipeline_scrape: new Date().toISOString().split('T')[0] // Formato YYYY-MM-DD
+          last_pipeline_scrape: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD
+          medications_found_last_scrape: medicationsFound ? 'true' : 'false'
         }
       },
       {

@@ -83,18 +83,22 @@ async function main() {
         }
         
         // 3. Guardar medicamentos de esta empresa inmediatamente
-        if (companyMedications.length > 0) {
+        const medicationsFound = companyMedications.length > 0;
+        
+        if (medicationsFound) {
           console.log(`\n  💾 Guardando ${companyMedications.length} medicamentos de ${company.name}...`);
           
           // Guardar en HubSpot
           await saveMedications(companyMedications);
           await publishChanges();
           console.log(`  ✅ Medicamentos guardados en HubSpot`);
+        } else {
+          console.log(`\n  ℹ️  No se encontraron medicamentos para ${company.name}`);
         }
         
-        // 4. Actualizar fecha de último scraping
-        await updateCompanyLastScrape(company.id);
-        console.log(`  📅 Fecha de scraping actualizada`);
+        // 4. Actualizar fecha de último scraping y estado de medicamentos encontrados
+        await updateCompanyLastScrape(company.id, medicationsFound);
+        console.log(`  📅 Fecha de scraping actualizada (Medicamentos encontrados: ${medicationsFound ? 'Sí' : 'No'})`);
         
       } catch (error) {
         console.error(`❌ Error procesando ${company.name}: ${error.message}`);
