@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { getCompaniesToScrape, updateCompanyLastScrape, saveMedications, publishChanges } from '../services/hubspotService.js';
+import { getCompaniesToScrape, updateCompanyLastScrape } from '../services/hubspotService.js';
 import { findPipelineUrls } from '../services/searchService.js';
 import { smartScrape } from '../services/playwrightService.js';
 import { scrapeWebsite } from '../services/scraperService.js';
@@ -82,16 +82,15 @@ async function main() {
           }
         }
         
-        // 3. Guardar medicamentos de esta empresa inmediatamente
+        // 3. Registrar medicamentos encontrados
         const medicationsFound = companyMedications.length > 0;
         
         if (medicationsFound) {
-          console.log(`\n  💾 Guardando ${companyMedications.length} medicamentos de ${company.name}...`);
-          
-          // Guardar en HubSpot
-          await saveMedications(companyMedications);
-          await publishChanges();
-          console.log(`  ✅ Medicamentos guardados en HubSpot`);
+          console.log(`\n  ✅ Se encontraron ${companyMedications.length} medicamentos de ${company.name}`);
+          // Mostrar los medicamentos encontrados
+          companyMedications.forEach((med, idx) => {
+            console.log(`     ${idx + 1}. ${med.molecula} - ${med.area_terapeutica} (${med.fase_cofepris})`);
+          });
         } else {
           console.log(`\n  ℹ️  No se encontraron medicamentos para ${company.name}`);
         }
