@@ -184,10 +184,10 @@ async function ensureMedicationsFoundProperty() {
           {
             name: 'medications_found_last_scrape',
             label: 'Medications Found Last Scrape',
-            type: 'enumeration',
-            fieldType: 'booleancheckbox',
+            type: 'string',
+            fieldType: 'text',
             groupName: 'companyinformation',
-            description: 'Indica si se encontraron medicamentos en el último scraping'
+            description: 'Indica si se encontraron medicamentos en el último scraping (Yes/No)'
           },
           {
             headers: {
@@ -224,7 +224,7 @@ export const updateCompanyLastScrape = async (companyId, medicationsFound = fals
       {
         properties: {
           last_pipeline_scrape: new Date().toISOString().split('T')[0], // Formato YYYY-MM-DD
-          medications_found_last_scrape: medicationsFound ? 'true' : 'false'
+          medications_found_last_scrape: medicationsFound ? 'Yes' : 'No'
         }
       },
       {
