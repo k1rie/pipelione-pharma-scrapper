@@ -189,7 +189,18 @@ export const createDealForPost = async (postData, keyword) => {
     }
 
     // Crear deal
-    const dealName = `${author} - Post LinkedIn (${keyword})`;
+    const dealName = `Scrapper Pipeline Pharma: ${author} - Post LinkedIn (${keyword})`;
+    
+    // Log de datos que se van a guardar
+    console.log('=== GUARDANDO DEAL EN HUBSPOT ===');
+    console.log(`Programa: Scrapper Pipeline Pharma`);
+    console.log(`Deal Name: ${dealName}`);
+    console.log(`Author: ${author}`);
+    console.log(`Keyword: ${keyword}`);
+    console.log(`Post URL: ${url}`);
+    console.log(`Profile URL: ${profileUrl || 'N/A'}`);
+    console.log(`Created At: ${createdAt || 'N/A'}`);
+    console.log('================================');
     
     const dealData = {
       properties: {
@@ -214,6 +225,12 @@ export const createDealForPost = async (postData, keyword) => {
     );
 
     console.log(`✅ Deal creado exitosamente: ${dealName} (ID: ${response.data.id})`);
+    console.log('=== DEAL CREADO EXITOSAMENTE ===');
+    console.log(`Deal ID: ${response.data.id}`);
+    console.log(`Deal Name: ${dealName}`);
+    console.log(`Pipeline: ${HUBSPOT_PIPELINE_ID}`);
+    console.log(`Stage: ${dealStageId}`);
+    console.log('================================');
     return response.data;
 
   } catch (error) {
