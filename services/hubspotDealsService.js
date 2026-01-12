@@ -5,7 +5,7 @@ dotenv.config();
 
 const HUBSPOT_TOKEN = process.env.HUBSPOT_TOKEN;
 const HUBSPOT_PIPELINE_ID = process.env.HUBSPOT_PIPELINE_ID || '811215668';
-const HUBSPOT_DEAL_STAGE_ID = process.env.HUBSPOT_DEAL_STAGE_ID || null;
+const HUBSPOT_DEAL_STAGE_ID = process.env.HUBSPOT_DEAL_STAGE_ID || '1169433784'; // Mismo stage que linkedin-posts-apify
 
 const BASE_URL = 'https://api.hubapi.com';
 
